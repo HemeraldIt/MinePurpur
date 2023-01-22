@@ -1,0 +1,344 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: TheDarkSword <TheDarkSword01@gmail.com>
+Date: Tue, 18 Oct 2022 14:44:22 +0200
+Subject: [PATCH] Implemented addons for Hemerald Server
+
+
+diff --git a/src/main/java/org/bukkit/Bukkit.java b/src/main/java/org/bukkit/Bukkit.java
+index e5943f1313f97dd6a353873d54424ae70d46dcef..53746e0ae8780cd85bba6618c92f65454cf1396a 100644
+--- a/src/main/java/org/bukkit/Bukkit.java
++++ b/src/main/java/org/bukkit/Bukkit.java
+@@ -2473,6 +2473,12 @@ public final class Bukkit {
+         return server.getServerName();
+     }
+ 
++    // Mineblock start
++    public void setServerName(@NotNull String serverName) {
++        server.setServerName(serverName);
++    }
++    // Mineblock end
++
+     /**
+      * Check if server is lagging according to laggy threshold setting
+      *
+diff --git a/src/main/java/org/bukkit/Server.java b/src/main/java/org/bukkit/Server.java
+index a7e2fab3e174fe2c1d79d904f7eaff88dd0c3c82..6a7f7b742f0e9dab678b499055487fcb37ce5bbd 100644
+--- a/src/main/java/org/bukkit/Server.java
++++ b/src/main/java/org/bukkit/Server.java
+@@ -2158,6 +2158,14 @@ public interface Server extends PluginMessageRecipient, net.kyori.adventure.audi
+     @NotNull
+     String getServerName();
+ 
++    // Mineblock Start
++    /**
++     * Set the name of this server
++     * @param serverName the name of the server
++     */
++    void setServerName(@NotNull String serverName);
++    // Mineblock end
++
+     /**
+      * Check if server is lagging according to laggy threshold setting
+      *
+diff --git a/src/main/java/org/bukkit/Skin.java b/src/main/java/org/bukkit/Skin.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..7e611958a794d7b5d5810b812b234ca47690487e
+--- /dev/null
++++ b/src/main/java/org/bukkit/Skin.java
+@@ -0,0 +1,75 @@
++package org.bukkit;
++
++import org.jetbrains.annotations.Nullable;
++
++import java.util.Objects;
++
++/**
++ * A self-contained skin
++ */
++public class Skin {
++    public static final Skin EMPTY = new Skin(null, null);
++
++    private final String data;
++    private final String signature;
++
++    /**
++     * Constructor of object
++     * @param data the base64 encoded data for this skin
++     * @param signature the base64 encoded signature for this skin
++     */
++    public Skin(@Nullable String data, @Nullable String signature) {
++        this.data = data;
++        this.signature = signature;
++    }
++
++    /**
++     * Return the base64 encoded data for this skin, or null if this
++     * is the empty skin i.e. Steve/Alex
++     * @return the base64 encoded data for this skin
++     */
++    public String getData() {
++        return data;
++    }
++
++    /**
++     * Return the base64 encoded signature for this skin, or null if
++     * this skin has no signature
++     * @return the base64 encoded signature for this skin
++     */
++    public String getSignature() {
++        return signature;
++    }
++
++    /**
++     * Return true if this is the empty skin i.e. Steve/Alex
++     * @return true if this is an empty skin
++     */
++    public boolean isEmpty() {
++        return this.data == null;
++    }
++
++    @Override
++    public boolean equals(Object o) {
++        if(this == o) {
++            return true;
++        }
++        if(!(o instanceof Skin skin)) {
++            return false;
++        }
++        if(!Objects.equals(data, skin.data)) {
++            return false;
++        }
++        if(!Objects.equals(signature, skin.signature)) {
++            return false;
++        }
++        return true;
++    }
++
++    @Override
++    public int hashCode() {
++        int result = data != null ? data.hashCode() : 0;
++        result = 31 * result + (signature != null ? signature.hashCode() : 0);
++        return result;
++    }
++}
+diff --git a/src/main/java/org/bukkit/entity/Player.java b/src/main/java/org/bukkit/entity/Player.java
+index 9c2dcca0b6e34a3083226360575f0956a077d767..c3d55eed00a2f93f00d2d03bd91dc440fae4e6d6 100644
+--- a/src/main/java/org/bukkit/entity/Player.java
++++ b/src/main/java/org/bukkit/entity/Player.java
+@@ -36,6 +36,7 @@ import org.bukkit.map.MapView;
+ import org.bukkit.plugin.Plugin;
+ import org.bukkit.plugin.messaging.PluginMessageRecipient;
+ import org.bukkit.scoreboard.Scoreboard;
++import org.bukkit.Skin;
+ import org.jetbrains.annotations.NotNull;
+ import org.jetbrains.annotations.Nullable;
+ 
+@@ -44,6 +45,68 @@ import org.jetbrains.annotations.Nullable;
+  */
+ public interface Player extends HumanEntity, Conversable, OfflinePlayer, PluginMessageRecipient, net.kyori.adventure.identity.Identified, com.destroystokyo.paper.network.NetworkClient { // Paper
+ 
++    //Mineblock start
++
++    /**
++     * Set a fake name for this player when viewed by t he given player.
++     * If the name is null then the fake name is cleared.
++     */
++    public void setFakeName(String name);
++
++    /**
++     * Return this player's fake name for the given viewer,
++     * or null if no fake name is set for that viewer
++     */
++    public String getFakeName();
++
++    /**
++     * Return this player fake name for the given viewer,
++     * or the real name if no fake name is set for that viewer
++     */
++    public String getSafeFakeName();
++
++    /**
++     * Test if this player has a fake name set for the given viewer
++     */
++    public boolean hasFakeName();
++
++    /**
++     * Clear this player's fake names for all viewers
++     */
++    public void clearFakeNames();
++
++    /**
++     * Set a fake display name for this player when viewed by the given player.
++     * If the name is null then the fake name is cleared.
++     */
++    public void setFakeDisplayName(String name);
++
++    /**
++     * Return this player's fake display name for the given viewer,
++     * or null if no fake name is set for that viewer
++     */
++    public String getFakeDisplayName();
++
++    /**
++     * Test if this player has a fake display name set for the given viewer
++     */
++    public boolean hasFakeDisplayName();
++
++    /**
++     * Clear this player's fake display names for all viewers
++     */
++    public void clearFakeDisplayNames();
++
++    /**
++     * Return this player's list name as viewed by the given player, fake or not
++     */
++    public String getFakePlayerListName();
++
++    /**
++     * Return this player's display name as viewed by the given player, fake or not
++     */
++    public String getSafeFakeDisplayName();
++
+     // Paper start
+     @Override
+     default @NotNull net.kyori.adventure.identity.Identity identity() {
+@@ -200,6 +263,76 @@ public interface Player extends HumanEntity, Conversable, OfflinePlayer, PluginM
+     @Deprecated // Paper
+     public void setPlayerListHeaderFooter(@Nullable String header, @Nullable String footer);
+ 
++    // Minenblock start
++    /**
++     * Test if this Player has a fake skin set for the given viewer
++     */
++    public boolean hasFakeSkin();
++
++    /**
++     * Return the {@link Skin} that the given viewer sees on this player,
++     * or null if the viewer can see this player's real skin.
++     */
++    public Skin getFakeSkin();
++
++    /**
++     * Return the {@link Skin} that the given viewer sees on this player,
++     * or the real skin if the viewer can see this player's real skin.
++     */
++    public Skin getSafeFakeSkin();
++
++    /**
++     * Set the {@link Skin} that the given viewer will see on this player.
++     * If null is given for the skin, any fake skin for the given viewer
++     * will be removed and they will see this player's real skin.
++     */
++    public void setFakeSkin(Skin newSkin);
++
++    /**
++     * Clear any fake {@link Skin}s set on this player, so that all other
++     * players will see this player's real skin.
++     */
++    public void clearFakeSkins();
++
++    /**
++     * Return the player's real {@link Skin} i.e. the one they have
++     * uploaded to their Minecraft account.
++     */
++    public Skin getRealSkin();
++
++    /**
++     * Return this player's current global {@link Skin}, which is what
++     * other players see as long as there is no fake skin set for them.
++     */
++    public Skin getSkin();
++
++    /**
++     * Set this player's {@link Skin}, which will be visible to
++     * all players who do not have a fake skin set. Passing null
++     * as the skin will reset the player's skin to their real one.
++     */
++    public void setSkin(Skin newSkin);
++
++    /**
++     * Get the set of skin parts that are currently visible on the player
++     */
++
++    /**
++     * Simultaneously set this player's fake name and {@link Skin} for the given viewer.
++     * This method only refreshes the player entity once, whereas calling
++     * {@link #setFakeName} and {@link #setFakeSkin} seperately would refresh it twice.
++     */
++    public void setFakeNameAndSkin(String name, Skin skin);
++
++    /**
++     * Simultaneously clear any fake names or {@link Skin}s set on this player.
++     * This method only refreshes the player entity once, whereas calling
++     * {@link #clearFakeNames} and {@link #clearFakeSkins} seperately would refresh it twice.
++     */
++    public void clearFakeNamesAndSkins();
++
++    // Mineblock end
++
+     /**
+      * Set the target of the player's compass.
+      *
+@@ -1400,6 +1533,17 @@ public interface Player extends HumanEntity, Conversable, OfflinePlayer, PluginM
+     @Deprecated
+     public void hidePlayer(@NotNull Player player);
+ 
++    // MineBlock start
++    /**
++     * Hides a player from this player
++     *
++     * @param player Player to hide
++     * @deprecated see {@link #softHidePlayer(Plugin, Player)}
++     */
++    @Deprecated
++    public void softHidePlayer(@NotNull Player player);
++    // Mineblock end
++
+     /**
+      * Hides a player from this player
+      *
+@@ -1408,6 +1552,16 @@ public interface Player extends HumanEntity, Conversable, OfflinePlayer, PluginM
+      */
+     public void hidePlayer(@NotNull Plugin plugin, @NotNull Player player);
+ 
++    // MineBlock start
++    /**
++     * Hides a player from this player
++     *
++     * @param plugin Plugin that wants to hide the player
++     * @param player Player to hide
++     */
++    public void softHidePlayer(@NotNull Plugin plugin, @NotNull Player player);
++    // Mineblock end
++
+     /**
+      * Allows this player to see a player that was previously hidden
+      *
+@@ -1445,6 +1599,16 @@ public interface Player extends HumanEntity, Conversable, OfflinePlayer, PluginM
+     @org.jetbrains.annotations.ApiStatus.Experimental // Paper
+     public void hideEntity(@NotNull Plugin plugin, @NotNull Entity entity);
+ 
++    // MineBlock start
++    /**
++     * Hides a entity from this player
++     *
++     * @param plugin Plugin that wants to hide the entity
++     * @param entity Entity to hide
++     */
++    public void softHideEntity(@NotNull Plugin plugin, @NotNull Entity entity);
++    // Mineblock end
++
+     /**
+      * Allows this player to see an entity that was previously hidden. If
+      * another another plugin had hidden the entity too, then the entity will
+@@ -1466,6 +1630,10 @@ public interface Player extends HumanEntity, Conversable, OfflinePlayer, PluginM
+     @org.jetbrains.annotations.ApiStatus.Experimental // Paper
+     public boolean canSee(@NotNull Entity entity);
+ 
++    public boolean canSeeInvisibles();
++
++    public void showInvisibles(boolean see);
++
+     /**
+      * Checks to see if this player is currently flying or not.
+      *

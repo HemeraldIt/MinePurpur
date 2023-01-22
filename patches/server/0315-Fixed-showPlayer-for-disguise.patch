@@ -1,0 +1,32 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: TheDarkSword <TheDarkSword01@gmail.com>
+Date: Thu, 3 Nov 2022 13:43:48 +0100
+Subject: [PATCH] Fixed showPlayer for disguise
+
+
+diff --git a/src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java b/src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java
+index 6318b793344a5334db9e568fdfa93f2cfa462d9a..a2cf8dc1fa4f1b441f4c994ad99bcddac850f70a 100644
+--- a/src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java
++++ b/src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java
+@@ -399,9 +399,9 @@ public class CraftPlayer extends CraftHumanEntity implements Player {
+             Skins.setProperties(skin, profile.getProperties());
+         }
+         ClientboundPlayerInfoPacket packet =  new ClientboundPlayerInfoPacket(ClientboundPlayerInfoPacket.Action.ADD_PLAYER);
+-        ProfilePublicKey profilePublicKey = viewer.getProfilePublicKey();
++        ProfilePublicKey profilePublicKey = getHandle().getProfilePublicKey();
+         ProfilePublicKey.Data data = profilePublicKey != null ? profilePublicKey.data() : null;
+-        packet.getEntries().add(new ClientboundPlayerInfoPacket.PlayerUpdate(profile, viewer.latency, viewer.gameMode.getGameModeForPlayer(), viewer.getTabListDisplayName(), data));
++        packet.getEntries().add(new ClientboundPlayerInfoPacket.PlayerUpdate(profile, getHandle().latency, getHandle().gameMode.getGameModeForPlayer(), getHandle().getTabListDisplayName(), data));
+         return packet;
+     }
+ 
+@@ -2206,7 +2206,8 @@ public class CraftPlayer extends CraftHumanEntity implements Player {
+ 
+         if (other instanceof ServerPlayer) {
+             ServerPlayer otherPlayer = (ServerPlayer) other;
+-            this.getHandle().connection.send(new ClientboundPlayerInfoPacket(ClientboundPlayerInfoPacket.Action.ADD_PLAYER, otherPlayer));
++            //this.getHandle().connection.send(new ClientboundPlayerInfoPacket(ClientboundPlayerInfoPacket.Action.ADD_PLAYER, otherPlayer));
++            this.getHandle().connection.send(otherPlayer.getBukkitEntity().makePlayerListAddPacket(getHandle()));
+         }
+ 
+         ChunkMap.TrackedEntity entry = tracker.entityMap.get(other.getId());

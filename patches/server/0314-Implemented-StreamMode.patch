@@ -1,0 +1,59 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: TheDarkSword <TheDarkSword01@gmail.com>
+Date: Wed, 19 Oct 2022 11:40:36 +0200
+Subject: [PATCH] Implemented StreamMode
+
+
+diff --git a/src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java b/src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java
+index ceb37dee23020d28feb9aa5ae87c6412a7bf1d99..6318b793344a5334db9e568fdfa93f2cfa462d9a 100644
+--- a/src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java
++++ b/src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java
+@@ -1981,6 +1981,48 @@ public class CraftPlayer extends CraftHumanEntity implements Player {
+         return (plugin == null) ? null : CraftPlayer.pluginWeakReferences.computeIfAbsent(plugin, WeakReference::new);
+     }
+ 
++    @Override
++    public void customizePlayer(String newName, Skin newSkin, Player other) {
++        Validate.notNull(other, "customized player cannot be null");
++
++        ServerPlayer initEntityPlayer = getHandle();
++
++        if (equals(other)) return;
++
++        ServerPlayer otherEntityPlayer = ((CraftPlayer) other).getHandle();
++
++        ChunkMap initEntityTracker = ((ServerLevel) initEntityPlayer.level).getChunkSource().chunkMap;
++        ChunkMap.TrackedEntity otherEntityEntryOnInitEntityTracker = initEntityTracker.entityMap.get(otherEntityPlayer.getId());
++        if (otherEntityEntryOnInitEntityTracker != null) {
++
++            // removing from tracker and tab
++            otherEntityEntryOnInitEntityTracker.removePlayer(initEntityPlayer);
++            initEntityPlayer.connection.connection.send(new ClientboundPlayerInfoPacket(ClientboundPlayerInfoPacket.Action.REMOVE_PLAYER, otherEntityPlayer));
++
++            // adding in tab with new profile and updating the tracker
++            ClientboundPlayerInfoPacket addPacket = new ClientboundPlayerInfoPacket(ClientboundPlayerInfoPacket.Action.ADD_PLAYER);
++            GameProfile profile = ((CraftPlayer) other).getProfile();
++
++            if(!newName.equals(other.getName()))
++                profile = new GameProfile(other.getUniqueId(), newName);
++
++            if (newSkin != null && !newSkin.equals(other.getSkin()))
++                Skins.setProperties(newSkin, profile.getProperties());
++
++            ProfilePublicKey profilePublicKey = otherEntityPlayer.getProfilePublicKey();
++            ProfilePublicKey.Data data = profilePublicKey != null ? profilePublicKey.data() : null;
++
++            addPacket.getEntries().add(new ClientboundPlayerInfoPacket.PlayerUpdate(profile,
++                    otherEntityPlayer.latency,
++                    otherEntityPlayer.gameMode.getGameModeForPlayer(),
++                    otherEntityPlayer.getTabListDisplayName(),
++                    data));
++
++            initEntityPlayer.connection.connection.send(addPacket);
++            otherEntityEntryOnInitEntityTracker.updatePlayer(initEntityPlayer);
++        }
++    }
++
+     @Override
+     @Deprecated
+     public void hidePlayer(Player player) {

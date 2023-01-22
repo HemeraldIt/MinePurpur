@@ -1,0 +1,25 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: TheDarkSword <TheDarkSword01@gmail.com>
+Date: Wed, 19 Oct 2022 11:40:37 +0200
+Subject: [PATCH] Implemented StreamMode
+
+
+diff --git a/src/main/java/org/bukkit/entity/Player.java b/src/main/java/org/bukkit/entity/Player.java
+index c3d55eed00a2f93f00d2d03bd91dc440fae4e6d6..b11f04711b185b03bd72d6f4011848aef9dca5bb 100644
+--- a/src/main/java/org/bukkit/entity/Player.java
++++ b/src/main/java/org/bukkit/entity/Player.java
+@@ -1524,6 +1524,14 @@ public interface Player extends HumanEntity, Conversable, OfflinePlayer, PluginM
+      */
+     public void setAllowFlight(boolean flight);
+ 
++    /**
++     * Used for stream mode, this method customize other player for this player
++     * @param newName the new player name
++     * @param newSkin the new skin of player
++     * @param other the player you want to customize
++     */
++    public void customizePlayer(String newName, Skin newSkin, Player other);
++
+     /**
+      * Hides a player from this player
+      *

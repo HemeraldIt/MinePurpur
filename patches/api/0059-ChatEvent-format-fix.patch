@@ -1,0 +1,70 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: TheDarkSword <TheDarkSword01@gmail.com>
+Date: Tue, 8 Nov 2022 11:12:01 +0100
+Subject: [PATCH] ChatEvent format fix
+
+
+diff --git a/src/main/java/org/bukkit/event/player/AsyncPlayerChatEvent.java b/src/main/java/org/bukkit/event/player/AsyncPlayerChatEvent.java
+index 399afcd19fcb6acd24857ed6ab48cf0d105a01a3..5c8026c8edabff2c3447ab5110c661d4adcb335b 100644
+--- a/src/main/java/org/bukkit/event/player/AsyncPlayerChatEvent.java
++++ b/src/main/java/org/bukkit/event/player/AsyncPlayerChatEvent.java
+@@ -31,7 +31,7 @@ public class AsyncPlayerChatEvent extends PlayerEvent implements Cancellable {
+     private static final HandlerList handlers = new HandlerList();
+     private boolean cancel = false;
+     private String message;
+-    private String format = "<%1$s> %2$s";
++    private String format;
+     private final Set<Player> recipients;
+ 
+     /**
+@@ -44,6 +44,7 @@ public class AsyncPlayerChatEvent extends PlayerEvent implements Cancellable {
+     public AsyncPlayerChatEvent(final boolean async, @NotNull final Player who, @NotNull final String message, @NotNull final Set<Player> players) {
+         super(who, async);
+         this.message = message;
++        this.format = "<" + player.getSafeFakeName() + "> " + message;
+         recipients = players;
+     }
+ 
+@@ -99,12 +100,12 @@ public class AsyncPlayerChatEvent extends PlayerEvent implements Cancellable {
+      */
+     public void setFormat(@NotNull final String format) throws IllegalFormatException, NullPointerException {
+         // Oh for a better way to do this!
+-        try {
++        /*try {
+             String.format(format, player, message);
+         } catch (RuntimeException ex) {
+             ex.fillInStackTrace();
+             throw ex;
+-        }
++        }*/
+ 
+         this.format = format;
+     }
+diff --git a/src/main/java/org/bukkit/event/player/PlayerChatEvent.java b/src/main/java/org/bukkit/event/player/PlayerChatEvent.java
+index 3a1da86e3dbf18c6e1040086c1df4b8976bc2b9d..066240ee2fe8ce28c7535b7b91fdaafee40dc1e1 100644
+--- a/src/main/java/org/bukkit/event/player/PlayerChatEvent.java
++++ b/src/main/java/org/bukkit/event/player/PlayerChatEvent.java
+@@ -32,7 +32,7 @@ public class PlayerChatEvent extends PlayerEvent implements Cancellable {
+     public PlayerChatEvent(@NotNull final Player player, @NotNull final String message) {
+         super(player);
+         this.message = message;
+-        this.format = "<%1$s> %2$s";
++        this.format = "<" + player.getSafeFakeName() + "> " + message;
+         this.recipients = new HashSet<Player>(player.getServer().getOnlinePlayers());
+     }
+ 
+@@ -100,12 +100,12 @@ public class PlayerChatEvent extends PlayerEvent implements Cancellable {
+      */
+     public void setFormat(@NotNull final String format) {
+         // Oh for a better way to do this!
+-        try {
++        /*try {
+             String.format(format, player, message);
+         } catch (RuntimeException ex) {
+             ex.fillInStackTrace();
+             throw ex;
+-        }
++        }*/
+ 
+         this.format = format;
+     }

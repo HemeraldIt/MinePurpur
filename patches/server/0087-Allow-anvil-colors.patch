@@ -1,0 +1,55 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: William Blake Galbreath <Blake.Galbreath@GMail.com>
+Date: Tue, 4 Aug 2020 22:08:23 -0500
+Subject: [PATCH] Allow anvil colors
+
+
+diff --git a/src/main/java/net/minecraft/world/inventory/AnvilMenu.java b/src/main/java/net/minecraft/world/inventory/AnvilMenu.java
+index 0363d2263b2d6bd6166fa21d7849297e95eddd77..3dbef489a0bf27fbef95de599970141f4aa783f3 100644
+--- a/src/main/java/net/minecraft/world/inventory/AnvilMenu.java
++++ b/src/main/java/net/minecraft/world/inventory/AnvilMenu.java
+@@ -280,6 +280,26 @@ public class AnvilMenu extends ItemCombinerMenu {
+             } else if (!this.itemName.equals(itemstack.getHoverName().getString())) {
+                 b1 = 1;
+                 i += b1;
++                // Purpur start
++                if (player != null && player.level.purpurConfig.anvilAllowColors) {
++                    org.bukkit.craftbukkit.entity.CraftHumanEntity bukkitPlayer = player.getBukkitEntity();
++                    final net.kyori.adventure.text.Component renameTextComponent;
++                    if (player.level.purpurConfig.anvilColorsUseMiniMessage && bukkitPlayer.hasPermission("purpur.anvil.minimessage")) {
++                        renameTextComponent = net.kyori.adventure.text.minimessage.MiniMessage.miniMessage().deserialize(itemName);
++                        itemstack1.setHoverName(io.papermc.paper.adventure.PaperAdventure.asVanilla(renameTextComponent));
++                    } else if (itemName.startsWith("&r") && player.getBukkitEntity().hasPermission("purpur.anvil.remove_italics")) {
++                        renameTextComponent = net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer.legacyAmpersand().deserialize(itemName.substring(2)).decoration(net.kyori.adventure.text.format.TextDecoration.ITALIC, false);
++                        itemstack1.setHoverName(io.papermc.paper.adventure.PaperAdventure.asVanilla(renameTextComponent));
++                    } else if (bukkitPlayer.hasPermission("purpur.anvil.color")) {
++                        renameTextComponent = net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer.legacyAmpersand().deserialize(itemName);
++                        itemstack1.setHoverName(io.papermc.paper.adventure.PaperAdventure.asVanilla(renameTextComponent));
++                    } else if (player.getBukkitEntity().hasPermission("purpur.anvil.format")){
++                        itemName = itemName.replaceAll("(?i)&([l-or])", "\u00a7$1");
++                        renameTextComponent = net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer.legacySection().deserialize(itemName);
++                        itemstack1.setHoverName(io.papermc.paper.adventure.PaperAdventure.asVanilla(renameTextComponent));
++                    }
++                } else
++                // Purpur end
+                 itemstack1.setHoverName(Component.literal(this.itemName));
+             }
+ 
+diff --git a/src/main/java/org/purpurmc/purpur/PurpurWorldConfig.java b/src/main/java/org/purpurmc/purpur/PurpurWorldConfig.java
+index 2421b9d2c41a878ff01c81753d140c50f30ef4c2..a7b763a1d86c98128a4c5f600ae89ab79fd7e22d 100644
+--- a/src/main/java/org/purpurmc/purpur/PurpurWorldConfig.java
++++ b/src/main/java/org/purpurmc/purpur/PurpurWorldConfig.java
+@@ -300,6 +300,13 @@ public class PurpurWorldConfig {
+         });
+     }
+ 
++    public boolean anvilAllowColors = false;
++    public boolean anvilColorsUseMiniMessage;
++    private void anvilSettings() {
++        anvilAllowColors = getBoolean("blocks.anvil.allow-colors", anvilAllowColors);
++        anvilColorsUseMiniMessage = getBoolean("blocks.anvil.use-mini-message", anvilColorsUseMiniMessage);
++    }
++
+     public boolean bedExplode = true;
+     public double bedExplosionPower = 5.0D;
+     public boolean bedExplosionFire = true;

@@ -1,0 +1,23 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: William Blake Galbreath <Blake.Galbreath@GMail.com>
+Date: Mon, 17 Aug 2020 21:50:32 -0500
+Subject: [PATCH] LivingEntity#broadcastItemBreak
+
+
+diff --git a/src/main/java/org/bukkit/entity/LivingEntity.java b/src/main/java/org/bukkit/entity/LivingEntity.java
+index 77861d44e3a0f7271f637751caaf3ffdd26ca046..dc69ce69a6cc7c2ae6023033dd445807c26bf052 100644
+--- a/src/main/java/org/bukkit/entity/LivingEntity.java
++++ b/src/main/java/org/bukkit/entity/LivingEntity.java
+@@ -1031,5 +1031,12 @@ public interface LivingEntity extends Attributable, Damageable, ProjectileSource
+      * @param safeFallDistance Safe fall distance
+      */
+     void setSafeFallDistance(float safeFallDistance);
++
++    /**
++     * Play item break animation for the item in specified equipment slot
++     *
++     * @param slot Equipment slot to play break animation for
++     */
++    void broadcastItemBreak(@NotNull org.bukkit.inventory.EquipmentSlot slot);
+     // Purpur end
+ }

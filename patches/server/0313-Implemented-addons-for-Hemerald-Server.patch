@@ -1,0 +1,603 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: TheDarkSword <TheDarkSword01@gmail.com>
+Date: Tue, 18 Oct 2022 14:44:21 +0200
+Subject: [PATCH] Implemented addons for Hemerald Server
+
+
+diff --git a/src/main/java/net/minecraft/server/Main.java b/src/main/java/net/minecraft/server/Main.java
+index 88ef769abfa163f923258d1f83d47b28c491eaca..be589a93ffaa58f7342707b90ebd2b9d20c97e3e 100644
+--- a/src/main/java/net/minecraft/server/Main.java
++++ b/src/main/java/net/minecraft/server/Main.java
+@@ -299,6 +299,12 @@ public class Main {
+                     dedicatedserver1.showGui();
+                 }
+ 
++                // Mineblock start
++                if(optionset.has("name")) {
++                    DedicatedServer.DOCKER_SERVER_NAME = (String) optionset.valueOf("name");
++                }
++                // Mineblock end
++
+                 if (optionset.has("port")) {
+                     int port = (Integer) optionset.valueOf("port");
+                     if (port > 0) {
+diff --git a/src/main/java/net/minecraft/server/dedicated/DedicatedServer.java b/src/main/java/net/minecraft/server/dedicated/DedicatedServer.java
+index d6c563dff2e816e043e096f8286e3d975cc86290..abef095ad74fbb92e1d9f5acb3f0a9ef6b7710dd 100644
+--- a/src/main/java/net/minecraft/server/dedicated/DedicatedServer.java
++++ b/src/main/java/net/minecraft/server/dedicated/DedicatedServer.java
+@@ -71,6 +71,10 @@ import org.bukkit.event.server.RemoteServerCommandEvent;
+ 
+ public class DedicatedServer extends MinecraftServer implements ServerInterface {
+ 
++    // Mineblock start
++    public static String DOCKER_SERVER_NAME = "unknown";
++    // Mineblock end
++
+     static final Logger LOGGER = LogUtils.getLogger();
+     private static final int CONVERSION_RETRY_DELAY_MS = 5000;
+     private static final int CONVERSION_RETRIES = 2;
+diff --git a/src/main/java/net/minecraft/server/dedicated/DedicatedServerProperties.java b/src/main/java/net/minecraft/server/dedicated/DedicatedServerProperties.java
+index 01ca7156d86243a80cd343a2a66be9ebedcc3b7c..a854619b117a8cd980756ce1d7cfed963a38daac 100644
+--- a/src/main/java/net/minecraft/server/dedicated/DedicatedServerProperties.java
++++ b/src/main/java/net/minecraft/server/dedicated/DedicatedServerProperties.java
+@@ -156,7 +156,7 @@ public class DedicatedServerProperties extends Settings<DedicatedServerPropertie
+         }, WorldPresets.NORMAL.location().toString()));
+         this.serverResourcePackInfo = DedicatedServerProperties.getServerPackInfo(this.get("resource-pack", ""), this.get("resource-pack-sha1", ""), this.getLegacyString("resource-pack-hash"), this.get("require-resource-pack", false), this.get("resource-pack-prompt", ""));
+         // Paper start - Configurable rcon ip
+-        final String rconIp = this.getStringRaw("rcon.ip");
++        final String rconIp = super.getStringRaw("rcon.ip");
+         this.rconIp = rconIp == null ? this.serverIp : rconIp;
+         // Paper end
+     }
+diff --git a/src/main/java/net/minecraft/server/level/ServerPlayer.java b/src/main/java/net/minecraft/server/level/ServerPlayer.java
+index 467f60dcbed645d773e7e3e042d2bbbd8f5bb589..9226f4f4cae728418cf7f411165f8137815c0c11 100644
+--- a/src/main/java/net/minecraft/server/level/ServerPlayer.java
++++ b/src/main/java/net/minecraft/server/level/ServerPlayer.java
+@@ -176,7 +176,7 @@ import org.bukkit.event.player.PlayerTeleportEvent.TeleportCause;
+ import org.bukkit.inventory.MainHand;
+ // CraftBukkit end
+ 
+-public class ServerPlayer extends Player {
++public class ServerPlayer extends Player implements Cloneable {
+ 
+     private static final Logger LOGGER = LogUtils.getLogger();
+     public long lastSave = MinecraftServer.currentTick; // Paper
+@@ -404,6 +404,19 @@ public class ServerPlayer extends Player {
+     }
+     // CraftBukkit end
+ 
++    // Mineblock start
++    public ServerPlayer clone(GameProfile gameProfile) {
++        try {
++            ServerPlayer serverPlayer = (ServerPlayer) super.clone();
++            serverPlayer.gameProfile = gameProfile;
++            return serverPlayer;
++        } catch (CloneNotSupportedException e) {
++            e.printStackTrace();
++        }
++        return this;
++    }
++    // Mineblock end
++
+     public void fudgeSpawnLocation(ServerLevel world) {
+         BlockPos blockposition = world.getSharedSpawnPos();
+ 
+diff --git a/src/main/java/org/bukkit/craftbukkit/CraftServer.java b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
+index 2491785f5edd782b74189bef33eeffe13288f3da..7f05faa00a2bd34463f95d7ca7d848cd812ba2f0 100644
+--- a/src/main/java/org/bukkit/craftbukkit/CraftServer.java
++++ b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
+@@ -3031,9 +3031,16 @@ public final class CraftServer implements Server {
+     // Purpur start
+     @Override
+     public String getServerName() {
+-        return this.getProperties().serverName;
++        return DedicatedServer.DOCKER_SERVER_NAME;
+     }
+ 
++    // Mineblock start
++    @Override
++    public void setServerName(@NotNull String serverName) {
++        DedicatedServer.DOCKER_SERVER_NAME = serverName;
++    }
++    // Mineblock end
++
+     @Override
+     public boolean isLagging() {
+         return getServer().lagging;
+diff --git a/src/main/java/org/bukkit/craftbukkit/Main.java b/src/main/java/org/bukkit/craftbukkit/Main.java
+index 8a4c8701122edf2f29edbe97e4fa199da2744e9e..1f5a3028a037a64a6aee1e6976bd23e4e601951d 100644
+--- a/src/main/java/org/bukkit/craftbukkit/Main.java
++++ b/src/main/java/org/bukkit/craftbukkit/Main.java
+@@ -77,6 +77,14 @@ public class Main {
+                         .ofType(Boolean.class)
+                         .describedAs("Authentication");
+ 
++                // Mineblock start
++                acceptsAll(asList("name"), "Give a name to the server")
++                        .withRequiredArg()
++                        .ofType(String.class)
++                        .defaultsTo("unknown")
++                        .describedAs("Server name");
++                // Mineblock end
++
+                 acceptsAll(Main.asList("s", "size", "max-players"), "Maximum amount of players")
+                         .withRequiredArg()
+                         .ofType(Integer.class)
+diff --git a/src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java b/src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java
+index bd363cd808f294f47298258ee7b99aeb36150887..ceb37dee23020d28feb9aa5ae87c6412a7bf1d99 100644
+--- a/src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java
++++ b/src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java
+@@ -26,6 +26,7 @@ import java.util.Optional;
+ import java.util.Set;
+ import java.util.UUID;
+ import java.util.WeakHashMap;
++import java.util.Objects;
+ import java.util.logging.Level;
+ import java.util.logging.Logger;
+ import javax.annotation.Nullable;
+@@ -65,6 +66,8 @@ import net.minecraft.network.protocol.game.ClientboundSoundPacket;
+ import net.minecraft.network.protocol.game.ClientboundStopSoundPacket;
+ import net.minecraft.network.protocol.game.ClientboundTabListPacket;
+ import net.minecraft.network.protocol.game.ClientboundUpdateAttributesPacket;
++import net.minecraft.network.protocol.game.ClientboundSetPlayerTeamPacket;
++import net.minecraft.network.protocol.game.ClientboundSetEntityDataPacket;
+ import net.minecraft.resources.ResourceLocation;
+ import net.minecraft.server.PlayerAdvancements;
+ import net.minecraft.server.level.ChunkMap;
+@@ -76,6 +79,7 @@ import net.minecraft.world.entity.Entity;
+ import net.minecraft.world.entity.ai.attributes.AttributeInstance;
+ import net.minecraft.world.entity.ai.attributes.AttributeMap;
+ import net.minecraft.world.entity.ai.attributes.Attributes;
++import net.minecraft.world.entity.player.ProfilePublicKey;
+ import net.minecraft.world.inventory.AbstractContainerMenu;
+ import net.minecraft.world.level.GameType;
+ import net.minecraft.world.level.block.Blocks;
+@@ -85,6 +89,7 @@ import net.minecraft.world.level.border.BorderChangeListener;
+ import net.minecraft.world.level.saveddata.maps.MapDecoration;
+ import net.minecraft.world.level.saveddata.maps.MapItemSavedData;
+ import net.minecraft.world.phys.Vec3;
++import net.minecraft.world.scores.PlayerTeam;
+ import org.apache.commons.lang.Validate;
+ import org.bukkit.BanList;
+ import org.bukkit.Bukkit;
+@@ -102,6 +107,7 @@ import org.bukkit.Sound;
+ import org.bukkit.Statistic;
+ import org.bukkit.WeatherType;
+ import org.bukkit.WorldBorder;
++import org.bukkit.Skin;
+ import org.bukkit.block.Block;
+ import org.bukkit.block.BlockState;
+ import org.bukkit.block.Sign;
+@@ -133,6 +139,7 @@ import org.bukkit.craftbukkit.scoreboard.CraftScoreboard;
+ import org.bukkit.craftbukkit.util.CraftChatMessage;
+ import org.bukkit.craftbukkit.util.CraftMagicNumbers;
+ import org.bukkit.craftbukkit.util.CraftNamespacedKey;
++import org.bukkit.craftbukkit.util.Skins;
+ import org.bukkit.entity.EntityType;
+ import org.bukkit.entity.LivingEntity;
+ import org.bukkit.entity.Player;
+@@ -176,11 +183,21 @@ public class CraftPlayer extends CraftHumanEntity implements Player {
+     private static final boolean DISABLE_CHANNEL_LIMIT = System.getProperty("paper.disableChannelLimit") != null; // Paper - add a flag to disable the channel limit
+     private long lastSaveTime;
+     // Paper end
++    // Mineblock start
++    private Skin realSkin;
++    private boolean showInvisibles;
++    private String fakeName;
++    private String fakeDisplayName;
++    private Skin fakeSkin;
++    // Mineblock end
+ 
+     public CraftPlayer(CraftServer server, ServerPlayer entity) {
+         super(server, entity);
+ 
+         this.firstPlayed = System.currentTimeMillis();
++        // Mineblock start
++        this.realSkin = this.getSkin();
++        // Mineblock end
+     }
+ 
+     // Paper start - implement view distances
+@@ -262,6 +279,243 @@ public class CraftPlayer extends CraftHumanEntity implements Player {
+         return this.getHandle().getGameProfile();
+     }
+ 
++    // Mineblock start
++
++    @Override
++    public boolean hasFakeSkin() {
++        return fakeSkin != null;
++    }
++
++    @Override
++    public Skin getFakeSkin() {
++        return fakeSkin;
++    }
++
++    @Override
++    public void setFakeSkin(Skin fakeSkin) {
++        this.setFakeNameAndSkin(null, fakeSkin, false, true);
++    }
++
++    @Override
++    public Skin getSkin() {
++        return Skins.fromProperties(this.getProfile().getProperties());
++    }
++
++    @Override
++    public void setSkin(Skin newSkin) {
++        if(newSkin == null) {
++            newSkin = this.realSkin;
++        }
++
++        Skin oldSkin = this.getSkin();
++        if(Objects.equals(oldSkin, newSkin)) return;
++
++        removeName();
++        Skins.setProperties(newSkin, this.getProfile().getProperties());
++        addName();
++    }
++
++    @Override
++    public Skin getSafeFakeSkin() {
++        return hasFakeSkin() ? fakeSkin : this.getSkin();
++    }
++
++    @Override
++    public Skin getRealSkin() {
++        return realSkin;
++    }
++
++    @Override
++    public void clearFakeSkins() {
++        removeName();
++        fakeSkin = null;
++        addName();
++    }
++
++    @Override
++    public void clearFakeNamesAndSkins() {
++        removeName();
++        fakeName = null;
++        fakeSkin = null;
++        addName();
++    }
++
++    @Override
++    public boolean hasFakeName() {
++        return fakeName != null;
++    }
++
++    @Override
++    public void clearFakeNames() {
++        removeName();
++        fakeName = null;
++        addName();
++    }
++
++    @Override
++    public String getFakeName() {
++        return fakeName;
++    }
++
++    @Override
++    public void setFakeName(String fakeName) {
++        this.setFakeNameAndSkin(fakeName, null, true, false);
++    }
++
++    @Override
++    public void setFakeNameAndSkin(String name, Skin skin) {
++        this.setFakeNameAndSkin(name, skin, true, true);
++    }
++
++    private void setFakeNameAndSkin(String newName, Skin newSkin, boolean nameChanged, boolean skinChanged) {
++        String oldName = fakeName;
++        nameChanged = nameChanged && !Objects.equals(oldName, newName);
++        Skin oldSkin = fakeSkin;
++        skinChanged = skinChanged && !Objects.equals(oldSkin, newSkin);
++
++        if(nameChanged || skinChanged) {
++            if(newName != null && newName.length() > 16) {
++                throw new IllegalArgumentException("Fake player names are limited to 16 characters in length");
++            }
++
++            fakeName = newName;
++            fakeSkin = newSkin;
++
++            refreshPlayerForEveryone();
++        }
++    }
++
++    public ClientboundPlayerInfoPacket makePlayerListAddPacket(ServerPlayer viewer) {
++        if(viewer.getBukkitEntity().hasMetadata("spectator")) {
++            return new ClientboundPlayerInfoPacket(ClientboundPlayerInfoPacket.Action.ADD_PLAYER, getHandle());
++        }
++
++        GameProfile profile = getHandle().getGameProfile();
++        String name = getSafeFakeName();
++        Skin skin = getSafeFakeSkin();
++
++        if(!name.equals(getName()) || !skin.equals(getSkin())) {
++            profile = new GameProfile(getUniqueId(), name);
++            Skins.setProperties(skin, profile.getProperties());
++        }
++        ClientboundPlayerInfoPacket packet =  new ClientboundPlayerInfoPacket(ClientboundPlayerInfoPacket.Action.ADD_PLAYER);
++        ProfilePublicKey profilePublicKey = viewer.getProfilePublicKey();
++        ProfilePublicKey.Data data = profilePublicKey != null ? profilePublicKey.data() : null;
++        packet.getEntries().add(new ClientboundPlayerInfoPacket.PlayerUpdate(profile, viewer.latency, viewer.gameMode.getGameModeForPlayer(), viewer.getTabListDisplayName(), data));
++        return packet;
++    }
++
++    @Override
++    public boolean hasFakeDisplayName() {
++        return fakeDisplayName != null;
++    }
++
++    @Override
++    public void clearFakeDisplayNames() {
++        fakeDisplayName = null;
++    }
++
++    @Override
++    public String getFakeDisplayName() {
++        return fakeDisplayName;
++    }
++
++    @Override
++    public void setFakeDisplayName(String fakeDisplayName) {
++        this.fakeDisplayName = fakeDisplayName;
++    }
++
++    @Override
++    public String getSafeFakeName() {
++        String name = this.getFakeName();
++        if(name == null) {
++            name = this.getName();
++        }
++        return name;
++    }
++
++    @Override
++    public String getFakePlayerListName() {
++        String name = this.getSafeFakeName();
++        if(name == null) {
++            name = this.getPlayerListName();
++        }
++        return name;
++    }
++
++    @Override
++    public String getSafeFakeDisplayName() {
++        String name = this.getFakeDisplayName();
++        if(name == null) {
++            name = this.getDisplayName();
++        }
++        return name;
++    }
++
++    private void refreshPlayerForEveryone() {
++        removeNameFor(this);
++        addNameFor(this);
++        for (Player onlinePlayer : getServer().getOnlinePlayers()) {
++            onlinePlayer.hidePlayer(this);
++            onlinePlayer.showPlayer(this);
++        }
++    }
++
++    /**
++     * Remove this player from the given viewr's scoreboard and player list.
++     */
++    private void removeName() {
++        for (CraftPlayer viewer : ((CraftServer) getServer()).getOnlinePlayers()) {
++            removeNameFor(viewer);
++        }
++    }
++
++    private void removeNameFor(CraftPlayer viewer) {
++        ServerPlayer viewerEntity = viewer.getHandle();
++        if(viewer.canSee(this)) {
++            ChunkMap tracker = ((ServerLevel)this.getHandle().level).getChunkSource().chunkMap;
++            ChunkMap.TrackedEntity entry = tracker.entityMap.get(getHandle().getId());
++            if(entry != null) {
++                entry.removePlayer(viewerEntity);
++            }
++
++            viewerEntity.connection.connection.send(new ClientboundPlayerInfoPacket(ClientboundPlayerInfoPacket.Action.REMOVE_PLAYER, this.getHandle()));
++        }
++
++        PlayerTeam team = viewer.getScoreboard().getHandle().getPlayerTeam(this.getName());
++        if(team != null) {
++            viewerEntity.connection.connection.send(ClientboundSetPlayerTeamPacket.createPlayerPacket(team, this.getName(), ClientboundSetPlayerTeamPacket.Action.REMOVE));
++        }
++    }
++
++    /**
++     * Add this player to the given viewer's scoreboard and player list.
++     */
++    private void addName() {
++        for (CraftPlayer viewer : ((CraftServer) getServer()).getOnlinePlayers()) {
++            addNameFor(viewer);
++        }
++    }
++
++    private void addNameFor(CraftPlayer viewer) {
++        if(viewer == null) return;
++        ServerPlayer viewerEntity = viewer.getHandle();
++        PlayerTeam team = viewer.getScoreboard().getHandle().getPlayerTeam(this.getName());
++        if(team != null) {
++            viewerEntity.connection.connection.send(ClientboundSetPlayerTeamPacket.createPlayerPacket(team, this.getName(), ClientboundSetPlayerTeamPacket.Action.ADD));
++        }
++
++        if(viewer.canSee(this)) {
++            viewerEntity.connection.connection.send(makePlayerListAddPacket(viewerEntity));
++            ChunkMap tracker = ((ServerLevel)this.getHandle().level).getChunkSource().chunkMap;
++            ChunkMap.TrackedEntity entry = tracker.entityMap.get(getHandle().getId());
++            if(entry != null) {
++                entry.updatePlayer(viewerEntity);
++            }
++        }
++    }
++    // Mineblock end
++
+     @Override
+     public boolean isOp() {
+         return server.getHandle().isOp(this.getProfile());
+@@ -1733,11 +1987,25 @@ public class CraftPlayer extends CraftHumanEntity implements Player {
+         this.hideEntity0(null, player);
+     }
+ 
++    // Mineblock start
++    @Override
++    public void softHidePlayer(@NotNull Player player) {
++        this.hideEntity1(null, player);
++    }
++    // Mineblock end
++
+     @Override
+     public void hidePlayer(Plugin plugin, Player player) {
+         this.hideEntity(plugin, player);
+     }
+ 
++    // Mineblock start
++    @Override
++    public void softHidePlayer(@NotNull Plugin plugin, @NotNull Player player) {
++        this.softHideEntity(plugin, player);
++    }
++    // Mineblock end
++
+     @Override
+     public void hideEntity(Plugin plugin, org.bukkit.entity.Entity entity) {
+         Validate.notNull(plugin, "Plugin cannot be null");
+@@ -1746,6 +2014,16 @@ public class CraftPlayer extends CraftHumanEntity implements Player {
+         this.hideEntity0(plugin, entity);
+     }
+ 
++    // Mineblock start
++    @Override
++    public void softHideEntity(@NotNull Plugin plugin, org.bukkit.entity.@NotNull Entity entity) {
++        Validate.notNull(plugin, "Plugin cannot be null");
++        Validate.isTrue(plugin.isEnabled(), "Plugin attempted to hide player while disabled");
++
++        this.hideEntity1(plugin, entity);
++    }
++    // Mineblock end
++
+     private void hideEntity0(@Nullable Plugin plugin, org.bukkit.entity.Entity entity) {
+         Validate.notNull(entity, "hidden entity cannot be null");
+         if (this.getHandle().connection == null) return;
+@@ -1769,6 +2047,38 @@ public class CraftPlayer extends CraftHumanEntity implements Player {
+ 
+         server.getPluginManager().callEvent(new PlayerHideEntityEvent(this, entity));
+     }
++
++    // Mineblock start
++    private void hideEntity1(@org.jetbrains.annotations.Nullable Plugin plugin, org.bukkit.entity.Entity entity) {
++        Validate.notNull(entity, "hidden entity cannot be null");
++        if (this.getHandle().connection == null) return;
++        if (this.equals(entity)) return;
++
++        Set<WeakReference<Plugin>> hidingPlugins = this.hiddenEntities.get(entity.getUniqueId());
++        if (hidingPlugins != null) {
++            // Some plugins are already hiding the entity. Just mark that this
++            // plugin wants the entity hidden too and end.
++            hidingPlugins.add(CraftPlayer.getPluginWeakReference(plugin));
++            return;
++        }
++        hidingPlugins = new HashSet<>();
++        hidingPlugins.add(CraftPlayer.getPluginWeakReference(plugin));
++        this.hiddenEntities.put(entity.getUniqueId(), hidingPlugins);
++
++        // Remove this entity from the hidden player's EntityTrackerEntry
++        Entity other = ((CraftEntity) entity).getHandle();
++        softUnregisterEntity(other);
++        server.getPluginManager().callEvent(new PlayerHideEntityEvent(this, entity));
++    }
++    private void softUnregisterEntity(Entity other) {
++        ChunkMap tracker = ((ServerLevel) this.getHandle().level).getChunkSource().chunkMap;
++        ChunkMap.TrackedEntity entry = tracker.entityMap.get(other.getId());
++        if(entry != null) {
++            entry.removePlayer(this.getHandle());
++        }
++    }
++    // Mineblock end
++
+     private void unregisterEntity(Entity other) {
+         // Paper end
+         ChunkMap tracker = ((ServerLevel) this.getHandle().level).getChunkSource().chunkMap;
+@@ -1786,6 +2096,28 @@ public class CraftPlayer extends CraftHumanEntity implements Player {
+         }
+     }
+ 
++    // Mineblock start
++    @Override
++    public boolean canSeeInvisibles() {
++        return this.showInvisibles;
++    }
++
++    @Override
++    public void showInvisibles(boolean see) {
++        if(see == this.showInvisibles) return;
++        this.showInvisibles = see;
++        ChunkMap tracker = ((ServerLevel) this.getHandle().level).getChunkSource().chunkMap;
++        for (Entity entity : getHandle().level.getEntities().getAll()) {
++            if(entity.isInvisible()) {
++                ChunkMap.TrackedEntity entry = tracker.entityMap.get(entity.getId());
++                if(entry != null && entry.seenBy.contains(getHandle().connection)) {
++                    getHandle().connection.connection.send(new ClientboundSetEntityDataPacket(entity.getId(), entity.getEntityData(), true));
++                }
++            }
++        }
++    }
++    // Mineblock end
++
+     @Override
+     @Deprecated
+     public void showPlayer(Player player) {
+diff --git a/src/main/java/org/bukkit/craftbukkit/util/Skins.java b/src/main/java/org/bukkit/craftbukkit/util/Skins.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..b7c3d1562a5c92f9ac0d041ae77d99615789ee42
+--- /dev/null
++++ b/src/main/java/org/bukkit/craftbukkit/util/Skins.java
+@@ -0,0 +1,42 @@
++package org.bukkit.craftbukkit.util;
++
++import com.mojang.authlib.properties.Property;
++import com.mojang.authlib.properties.PropertyMap;
++import org.bukkit.Skin;
++
++public class Skins {
++
++    public static Skin fromProperties(PropertyMap profile) {
++        for(Property property : profile.get("textures")) {
++            if(property.hasSignature()) {
++                return new Skin(property.getValue(), property.getSignature());
++            } else {
++                return new Skin(property.getValue(), null);
++            }
++        }
++        return Skin.EMPTY;
++    }
++
++    public static Property toProperty(Skin skin) {
++        if(skin == null || skin.isEmpty()) return null;
++
++        if(skin.getSignature() != null) {
++            return new Property("textures", skin.getData(), skin.getSignature());
++        } else {
++            return new Property("textures", skin.getData());
++        }
++    }
++
++    public static PropertyMap setProperties(Skin skin, PropertyMap properties) {
++        properties.removeAll("textures");
++        if(skin != null && !skin.isEmpty()) {
++            properties.put("textures", toProperty(skin));
++        }
++        return properties;
++    }
++
++    public static PropertyMap toProperties(Skin skin) {
++        return setProperties(skin, new PropertyMap());
++    }
++}
++
